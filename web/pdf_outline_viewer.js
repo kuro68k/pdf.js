@@ -112,12 +112,9 @@ class PDFOutlineViewer {
    *
    * @private
    */
-  _addToggleButton(div, { count, items, }) {
+  _addToggleButton(div) {
     let toggler = document.createElement('div');
     toggler.className = 'outlineItemToggler';
-    if (count < 0 && Math.abs(count) === items.length) {
-      toggler.classList.add('outlineItemsHidden');
-    }
     toggler.onclick = (evt) => {
       evt.stopPropagation();
       toggler.classList.toggle('outlineItemsHidden');
@@ -176,8 +173,10 @@ class PDFOutlineViewer {
     let queue = [{ parent: fragment, items: this.outline, }];
     let hasAnyNesting = false;
     while (queue.length > 0) {
-      const levelData = queue.shift();
-      for (const item of levelData.items) {
+      let levelData = queue.shift();
+      for (let i = 0, len = levelData.items.length; i < len; i++) {
+        let item = levelData.items[i];
+
         let div = document.createElement('div');
         div.className = 'outlineItem';
 
@@ -191,7 +190,7 @@ class PDFOutlineViewer {
 
         if (item.items.length > 0) {
           hasAnyNesting = true;
-          this._addToggleButton(div, item);
+          this._addToggleButton(div);
 
           let itemsDiv = document.createElement('div');
           itemsDiv.className = 'outlineItems';
@@ -205,9 +204,6 @@ class PDFOutlineViewer {
     }
     if (hasAnyNesting) {
       this.container.classList.add('outlineWithDeepNesting');
-
-      this.lastToggleIsShow =
-        (fragment.querySelectorAll('.outlineItemsHidden').length === 0);
     }
 
     this.container.appendChild(fragment);

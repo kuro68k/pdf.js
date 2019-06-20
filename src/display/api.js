@@ -715,7 +715,6 @@ class PDFDocumentProxy {
    *     bold: boolean,
    *     italic: boolean,
    *     color: rgb Uint8ClampedArray,
-   *     count: integer or undefined,
    *     dest: dest obj,
    *     url: string,
    *     items: array of more items like this
@@ -1005,7 +1004,7 @@ class PDFPageProxy {
     const stats = this._stats;
     stats.time('Overall');
 
-    // If there was a pending destroy, cancel it so no cleanup happens during
+    // If there was a pending destroy cancel it so no cleanup happens during
     // this call to render.
     this.pendingCleanup = false;
 
@@ -1045,9 +1044,7 @@ class PDFPageProxy {
         intentState.renderTasks.splice(i, 1);
       }
 
-      // Attempt to reduce memory usage during *printing*, by always running
-      // cleanup once rendering has finished (regardless of cleanupAfterRender).
-      if (this.cleanupAfterRender || renderingIntent === 'print') {
+      if (this.cleanupAfterRender) {
         this.pendingCleanup = true;
       }
       this._tryCleanup();
@@ -1380,7 +1377,7 @@ class LoopbackPort {
   }
 
   terminate() {
-    this._listeners.length = 0;
+    this._listeners = [];
   }
 }
 
@@ -1763,8 +1760,8 @@ class WorkerTransport {
         waitOn.push(page._destroy());
       }
     });
-    this.pageCache.length = 0;
-    this.pagePromises.length = 0;
+    this.pageCache = [];
+    this.pagePromises = [];
     // We also need to wait for the worker to finish its long running tasks.
     const terminated = this.messageHandler.sendWithPromise('Terminate', null);
     waitOn.push(terminated);

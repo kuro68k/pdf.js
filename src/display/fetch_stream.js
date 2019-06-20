@@ -12,7 +12,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/* eslint no-var: error */
 
 import {
   AbortException, assert, createPromiseCapability
@@ -33,7 +32,6 @@ function createFetchOptions(headers, withCredentials, abortController) {
   };
 }
 
-/** @implements {IPDFStream} */
 class PDFFetchStream {
   constructor(source) {
     this.source = source;
@@ -58,7 +56,7 @@ class PDFFetchStream {
     if (end <= this._progressiveDataLength) {
       return null;
     }
-    const reader = new PDFFetchStreamRangeReader(this, begin, end);
+    let reader = new PDFFetchStreamRangeReader(this, begin, end);
     this._rangeRequestReaders.push(reader);
     return reader;
   }
@@ -67,22 +65,21 @@ class PDFFetchStream {
     if (this._fullRequestReader) {
       this._fullRequestReader.cancel(reason);
     }
-    const readers = this._rangeRequestReaders.slice(0);
+    let readers = this._rangeRequestReaders.slice(0);
     readers.forEach(function(reader) {
       reader.cancel(reason);
     });
   }
 }
 
-/** @implements {IPDFStreamReader} */
 class PDFFetchStreamReader {
   constructor(stream) {
     this._stream = stream;
     this._reader = null;
     this._loaded = 0;
     this._filename = null;
-    const source = stream.source;
-    this._withCredentials = source.withCredentials || false;
+    let source = stream.source;
+    this._withCredentials = source.withCredentials;
     this._contentLength = source.length;
     this._headersCapability = createPromiseCapability();
     this._disableRange = source.disableRange || false;
@@ -98,15 +95,15 @@ class PDFFetchStreamReader {
     this._isRangeSupported = !source.disableRange;
 
     this._headers = new Headers();
-    for (const property in this._stream.httpHeaders) {
-      const value = this._stream.httpHeaders[property];
+    for (let property in this._stream.httpHeaders) {
+      let value = this._stream.httpHeaders[property];
       if (typeof value === 'undefined') {
         continue;
       }
       this._headers.append(property, value);
     }
 
-    const url = source.url;
+    let url = source.url;
     fetch(url, createFetchOptions(this._headers, this._withCredentials,
         this._abortController)).then((response) => {
       if (!validateResponseStatus(response.status)) {
@@ -118,7 +115,7 @@ class PDFFetchStreamReader {
       const getResponseHeader = (name) => {
         return response.headers.get(name);
       };
-      const { allowRangeRequests, suggestedLength, } =
+      let { allowRangeRequests, suggestedLength, } =
         validateRangeRequestCapabilities({
           getResponseHeader,
           isHttp: this._stream.isHttp,
@@ -135,7 +132,7 @@ class PDFFetchStreamReader {
       // We need to stop reading when range is supported and streaming is
       // disabled.
       if (!this._isStreamingSupported && this._isRangeSupported) {
-        this.cancel(new AbortException('Streaming is disabled.'));
+        this.cancel(new AbortException('streaming is disabled'));
       }
     }).catch(this._headersCapability.reject);
 
@@ -175,7 +172,7 @@ class PDFFetchStreamReader {
         total: this._contentLength,
       });
     }
-    const buffer = new Uint8Array(value).buffer;
+    let buffer = new Uint8Array(value).buffer;
     return { value: buffer, done: false, };
   }
 
@@ -189,14 +186,13 @@ class PDFFetchStreamReader {
   }
 }
 
-/** @implements {IPDFStreamRangeReader} */
 class PDFFetchStreamRangeReader {
   constructor(stream, begin, end) {
     this._stream = stream;
     this._reader = null;
     this._loaded = 0;
-    const source = stream.source;
-    this._withCredentials = source.withCredentials || false;
+    let source = stream.source;
+    this._withCredentials = source.withCredentials;
     this._readCapability = createPromiseCapability();
     this._isStreamingSupported = !source.disableStream;
 
@@ -205,16 +201,17 @@ class PDFFetchStreamRangeReader {
     }
 
     this._headers = new Headers();
-    for (const property in this._stream.httpHeaders) {
-      const value = this._stream.httpHeaders[property];
+    for (let property in this._stream.httpHeaders) {
+      let value = this._stream.httpHeaders[property];
       if (typeof value === 'undefined') {
         continue;
       }
       this._headers.append(property, value);
     }
-    this._headers.append('Range', `bytes=${begin}-${end - 1}`);
 
-    const url = source.url;
+    let rangeStr = begin + '-' + (end - 1);
+    this._headers.append('Range', 'bytes=' + rangeStr);
+    let url = source.url;
     fetch(url, createFetchOptions(this._headers, this._withCredentials,
         this._abortController)).then((response) => {
       if (!validateResponseStatus(response.status)) {
@@ -241,7 +238,7 @@ class PDFFetchStreamRangeReader {
     if (this.onProgress) {
       this.onProgress({ loaded: this._loaded, });
     }
-    const buffer = new Uint8Array(value).buffer;
+    let buffer = new Uint8Array(value).buffer;
     return { value: buffer, done: false, };
   }
 

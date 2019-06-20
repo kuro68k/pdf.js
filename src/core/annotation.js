@@ -16,8 +16,7 @@
 
 import {
   AnnotationBorderStyleType, AnnotationFieldFlag, AnnotationFlag,
-  AnnotationType, assert, isString, OPS, stringToBytes, stringToPDFString, Util,
-  warn
+  AnnotationType, isString, OPS, stringToBytes, stringToPDFString, Util, warn
 } from '../shared/util';
 import { Catalog, FileSpec, ObjectLoader } from './obj';
 import { Dict, isDict, isName, isRef, isStream } from './primitives';
@@ -61,6 +60,7 @@ class AnnotationFactory {
     let parameters = {
       xref,
       dict,
+      ref: isRef(ref) ? ref : null,
       subtype,
       id,
       pdfManager,
@@ -174,9 +174,9 @@ function getTransformMatrix(rect, bbox, matrix) {
 
 class Annotation {
   constructor(params) {
-    const dict = params.dict;
+    let dict = params.dict;
 
-    this.setContents(dict.get('Contents'));
+    this.setCreationDate(dict.get('CreationDate'));
     this.setModificationDate(dict.get('M'));
     this.setFlags(dict.get('F'));
     this.setRectangle(dict.getArray('Rect'));
@@ -189,7 +189,7 @@ class Annotation {
       annotationFlags: this.flags,
       borderStyle: this.borderStyle,
       color: this.color,
-      contents: this.contents,
+      creationDate: this.creationDate,
       hasAppearance: !!this.appearance,
       id: params.id,
       modificationDate: this.modificationDate,
@@ -244,16 +244,15 @@ class Annotation {
   }
 
   /**
-   * Set the contents.
+   * Set the creation date.
    *
    * @public
    * @memberof Annotation
-   * @param {string} contents - Text to display for the annotation or, if the
-   *                            type of annotation does not display text, a
-   *                            description of the annotation's contents
+   * @param {string} creationDate - PDF date string that indicates when the
+   *                                annotation was originally created
    */
-  setContents(contents) {
-    this.contents = stringToPDFString(contents || '');
+  setCreationDate(creationDate) {
+    this.creationDate = isString(creationDate) ? creationDate : null;
   }
 
   /**
@@ -362,11 +361,6 @@ class Annotation {
    * @param {Dict} borderStyle - The border style dictionary
    */
   setBorderStyle(borderStyle) {
-    if (typeof PDFJSDev === 'undefined' ||
-        PDFJSDev.test('!PRODUCTION || TESTING')) {
-      assert(this.rectangle, 'setRectangle must have been called previously.');
-    }
-
     this.borderStyle = new AnnotationBorderStyle();
     if (!isDict(borderStyle)) {
       return;
@@ -376,7 +370,7 @@ class Annotation {
       let dictType = dict.get('Type');
 
       if (!dictType || isName(dictType, 'Border')) {
-        this.borderStyle.setWidth(dict.get('W'), this.rectangle);
+        this.borderStyle.setWidth(dict.get('W'));
         this.borderStyle.setStyle(dict.get('S'));
         this.borderStyle.setDashArray(dict.getArray('D'));
       }
@@ -385,7 +379,7 @@ class Annotation {
       if (Array.isArray(array) && array.length >= 3) {
         this.borderStyle.setHorizontalCornerRadius(array[0]);
         this.borderStyle.setVerticalCornerRadius(array[1]);
-        this.borderStyle.setWidth(array[2], this.rectangle);
+        this.borderStyle.setWidth(array[2]);
 
         if (array.length === 4) { // Dash array available
           this.borderStyle.setDashArray(array[3]);
@@ -503,16 +497,9 @@ class AnnotationBorderStyle {
    *
    * @public
    * @memberof AnnotationBorderStyle
-   * @param {integer} width - The width.
-   * @param {Array} rect - The annotation `Rect` entry.
+   * @param {integer} width - The width
    */
-  setWidth(width, rect = [0, 0, 0, 0]) {
-    if (typeof PDFJSDev === 'undefined' ||
-        PDFJSDev.test('!PRODUCTION || TESTING')) {
-      assert(Array.isArray(rect) && rect.length === 4,
-             'A valid `rect` parameter must be provided.');
-    }
-
+  setWidth(width) {
     // Some corrupt PDF generators may provide the width as a `Name`,
     // rather than as a number (fixes issue 10385).
     if (isName(width)) {
@@ -520,19 +507,6 @@ class AnnotationBorderStyle {
       return;
     }
     if (Number.isInteger(width)) {
-      if (width > 0) {
-        const maxWidth = (rect[2] - rect[0]) / 2;
-        const maxHeight = (rect[3] - rect[1]) / 2;
-
-        // Ignore large `width`s, since they lead to the Annotation overflowing
-        // the size set by the `Rect` entry thus causing the `annotationLayer`
-        // to render it over the surrounding document (fixes bug1552113.pdf).
-        if ((maxWidth > 0 && maxHeight > 0) &&
-            (width > maxWidth || width > maxHeight)) {
-          warn(`AnnotationBorderStyle.setWidth - ignoring width: ${width}`);
-          width = 1;
-        }
-      }
       this.width = width;
     }
   }
@@ -641,30 +615,16 @@ class AnnotationBorderStyle {
 class MarkupAnnotation extends Annotation {
   constructor(parameters) {
     super(parameters);
-
     const dict = parameters.dict;
+
     if (!dict.has('C')) {
       // Fall back to the default background color.
       this.data.color = null;
     }
 
-    this.setCreationDate(dict.get('CreationDate'));
-    this.data.creationDate = this.creationDate;
-
     this.data.hasPopup = dict.has('Popup');
     this.data.title = stringToPDFString(dict.get('T') || '');
-  }
-
-  /**
-   * Set the creation date.
-   *
-   * @public
-   * @memberof MarkupAnnotation
-   * @param {string} creationDate - PDF date string that indicates when the
-   *                                annotation was originally created
-   */
-  setCreationDate(creationDate) {
-    this.creationDate = isString(creationDate) ? creationDate : null;
+    this.data.contents = stringToPDFString(dict.get('Contents') || '');
   }
 }
 
@@ -1016,6 +976,13 @@ class PopupAnnotation extends Annotation {
     this.data.title = stringToPDFString(parentItem.get('T') || '');
     this.data.contents = stringToPDFString(parentItem.get('Contents') || '');
 
+    if (!parentItem.has('CreationDate')) {
+      this.data.creationDate = null;
+    } else {
+      this.setCreationDate(parentItem.get('CreationDate'));
+      this.data.creationDate = this.creationDate;
+    }
+
     if (!parentItem.has('M')) {
       this.data.modificationDate = null;
     } else {
@@ -1199,5 +1166,4 @@ export {
   Annotation,
   AnnotationBorderStyle,
   AnnotationFactory,
-  MarkupAnnotation,
 };

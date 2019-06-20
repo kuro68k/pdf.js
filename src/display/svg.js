@@ -1137,10 +1137,6 @@ SVGGraphics = class SVGGraphics {
     if (!this.pendingClip) {
       return;
     }
-    if (!current.element) {
-      this.pendingClip = null;
-      return;
-    }
 
     // Add the current path to a clipping path.
     const clipId = `clippath${clipCount++}`;

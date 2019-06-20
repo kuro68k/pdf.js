@@ -41,26 +41,14 @@ var g_requestHeaders = {};
 // g_referrers[tabId][frameId] = referrer of PDF frame.
 var g_referrers = {};
 
-var extraInfoSpecWithHeaders; // = ['requestHeaders', 'extraHeaders']
-
 (function() {
   var requestFilter = {
     urls: ['*://*/*'],
     types: ['main_frame', 'sub_frame'],
   };
-  function registerListener(extraInfoSpec) {
-    extraInfoSpecWithHeaders = extraInfoSpec;
-    // May throw if the given extraInfoSpec is unsupported.
-    chrome.webRequest.onSendHeaders.addListener(function(details) {
-      g_requestHeaders[details.requestId] = details.requestHeaders;
-    }, requestFilter, extraInfoSpec);
-  }
-  try {
-    registerListener(['requestHeaders', 'extraHeaders']);
-  } catch (e) {
-    // "extraHeaders" is not supported in Chrome 71 and earlier.
-    registerListener(['requestHeaders']);
-  }
+  chrome.webRequest.onSendHeaders.addListener(function(details) {
+    g_requestHeaders[details.requestId] = details.requestHeaders;
+  }, requestFilter, ['requestHeaders']);
   chrome.webRequest.onBeforeRedirect.addListener(forgetHeaders, requestFilter);
   chrome.webRequest.onCompleted.addListener(forgetHeaders, requestFilter);
   chrome.webRequest.onErrorOccurred.addListener(forgetHeaders, requestFilter);
@@ -117,7 +105,7 @@ chrome.runtime.onConnect.addListener(function onReceivePort(port) {
         urls: [data.requestUrl],
         types: ['xmlhttprequest'],
         tabId: tabId,
-      }, ['blocking', ...extraInfoSpecWithHeaders]);
+      }, ['blocking', 'requestHeaders']);
     }
     // Acknowledge the message, and include the latest referer for this frame.
     port.postMessage(referer);

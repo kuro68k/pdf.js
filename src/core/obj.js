@@ -20,8 +20,8 @@ import {
   warn
 } from '../shared/util';
 import {
-  clearPrimitiveCaches, Dict, isCmd, isDict, isName, isRef, isRefsEqual,
-  isStream, Ref, RefSet, RefSetCache
+  Dict, isCmd, isDict, isName, isRef, isRefsEqual, isStream, Ref, RefSet,
+  RefSetCache
 } from './primitives';
 import { Lexer, Parser } from './parser';
 import {
@@ -144,7 +144,6 @@ class Catalog {
       const title = outlineDict.get('Title');
       const flags = outlineDict.get('F') || 0;
       const color = outlineDict.getArray('C');
-      const count = outlineDict.get('Count');
       let rgbColor = blackColor;
 
       // We only need to parse the color when it's valid, and non-default.
@@ -160,7 +159,7 @@ class Catalog {
         newWindow: data.newWindow,
         title: stringToPDFString(title),
         color: rgbColor,
-        count: Number.isInteger(count) ? count : undefined,
+        count: outlineDict.get('Count'),
         bold: !!(flags & 2),
         italic: !!(flags & 1),
         items: [],
@@ -663,7 +662,6 @@ class Catalog {
   }
 
   cleanup() {
-    clearPrimitiveCaches();
     this.pageKidsCountCache.clear();
 
     const promises = [];
@@ -1699,7 +1697,7 @@ var XRef = (function XRefClosure() {
 
     fetchCompressed(ref, xrefEntry, suppressEncryption = false) {
       var tableOffset = xrefEntry.offset;
-      var stream = this.fetch(Ref.get(tableOffset, 0));
+      var stream = this.fetch(new Ref(tableOffset, 0));
       if (!isStream(stream)) {
         throw new FormatError('bad ObjStm stream');
       }

@@ -67,7 +67,7 @@ class IPDFStreamReader {
    * @returns {Promise}
    */
   get headersReady() {
-    return Promise.resolve();
+    return null;
   }
 
   /**
@@ -116,7 +116,7 @@ class IPDFStreamReader {
    * set to true.
    * @returns {Promise}
    */
-  async read() {}
+  read() {}
 
   /**
    * Cancels all pending read requests and closes the stream.
@@ -157,7 +157,7 @@ class IPDFStreamRangeReader {
    * set to true.
    * @returns {Promise}
    */
-  async read() {}
+  read() {}
 
   /**
    * Cancels all pending read requests and closes the stream.

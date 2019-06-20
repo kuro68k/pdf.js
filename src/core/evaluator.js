@@ -1830,7 +1830,7 @@ var PartialEvaluator = (function PartialEvaluatorClosure() {
     extractDataStructures:
         function PartialEvaluator_extractDataStructures(dict, baseDict,
                                                         properties) {
-      let xref = this.xref, cidToGidBytes;
+      var xref = this.xref;
       // 9.10.2
       var toUnicode = (dict.get('ToUnicode') || baseDict.get('ToUnicode'));
       var toUnicodePromise = toUnicode ?
@@ -1849,7 +1849,7 @@ var PartialEvaluator = (function PartialEvaluatorClosure() {
 
         var cidToGidMap = dict.get('CIDToGIDMap');
         if (isStream(cidToGidMap)) {
-          cidToGidBytes = cidToGidMap.getBytes();
+          properties.cidToGidMap = this.readCidToGidMap(cidToGidMap);
         }
       }
 
@@ -1932,12 +1932,8 @@ var PartialEvaluator = (function PartialEvaluatorClosure() {
       return toUnicodePromise.then((toUnicode) => {
         properties.toUnicode = toUnicode;
         return this.buildToUnicode(properties);
-      }).then((toUnicode) => {
+      }).then(function (toUnicode) {
         properties.toUnicode = toUnicode;
-        if (cidToGidBytes) {
-          properties.cidToGidMap = this.readCidToGidMap(cidToGidBytes,
-                                                        toUnicode);
-        }
         return properties;
       });
     },
@@ -2153,17 +2149,18 @@ var PartialEvaluator = (function PartialEvaluatorClosure() {
       return Promise.resolve(null);
     },
 
-    readCidToGidMap(glyphsData, toUnicode) {
+    readCidToGidMap: function PartialEvaluator_readCidToGidMap(cidToGidStream) {
       // Extract the encoding from the CIDToGIDMap
+      var glyphsData = cidToGidStream.getBytes();
 
       // Set encoding 0 to later verify the font has an encoding
       var result = [];
       for (var j = 0, jj = glyphsData.length; j < jj; j++) {
         var glyphID = (glyphsData[j++] << 8) | glyphsData[j];
-        const code = j >> 1;
-        if (glyphID === 0 && !toUnicode.has(code)) {
+        if (glyphID === 0) {
           continue;
         }
+        var code = j >> 1;
         result[code] = glyphID;
       }
       return result;
